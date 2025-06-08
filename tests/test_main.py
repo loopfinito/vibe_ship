@@ -17,7 +17,8 @@ def sample_ship():
         position_x=10.0,
         position_y=20.0,
         destination_x=30.0,
-        destination_y=40.0
+        destination_y=40.0,
+        speed=2.0
     )
     ships[ship.id] = ship
     yield ship
@@ -159,3 +160,107 @@ class TestSetDestination:
         data = response.get_json()
         assert data['destination_x'] == 0.0
         assert data['destination_y'] == 0.0
+
+class TestSetSpeed:
+    def test_set_speed_success(self, client, sample_ship):
+        """Test successfully setting a new speed"""
+        new_speed = {"speed": 5.0}
+        
+        response = client.post(
+            f'/ships/{sample_ship.id}/speed',
+            data=json.dumps(new_speed),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['speed'] == 5.0
+        assert data['id'] == sample_ship.id
+        
+        # Verify the ship was actually updated
+        assert ships[sample_ship.id].speed == 5.0
+
+    def test_set_speed_ship_not_found(self, client):
+        """Test setting speed for non-existent ship"""
+        speed_data = {"speed": 3.0}
+        
+        response = client.post(
+            '/ships/non-existent-id/speed',
+            data=json.dumps(speed_data),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 404
+        data = response.get_json()
+        assert data['error'] == 'Ship not found'
+
+    def test_set_speed_missing_parameter(self, client, sample_ship):
+        """Test setting speed with missing speed parameter"""
+        empty_data = {}
+        
+        response = client.post(
+            f'/ships/{sample_ship.id}/speed',
+            data=json.dumps(empty_data),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['error'] == 'Missing speed parameter'
+
+    def test_set_speed_invalid_format(self, client, sample_ship):
+        """Test setting speed with invalid format"""
+        invalid_speed = {"speed": "invalid"}
+        
+        response = client.post(
+            f'/ships/{sample_ship.id}/speed',
+            data=json.dumps(invalid_speed),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['error'] == 'Invalid speed format'
+
+    def test_set_speed_negative_value(self, client, sample_ship):
+        """Test setting negative speed"""
+        negative_speed = {"speed": -1.0}
+        
+        response = client.post(
+            f'/ships/{sample_ship.id}/speed',
+            data=json.dumps(negative_speed),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['error'] == 'Speed must be greater than 0'
+
+    def test_set_speed_zero_value(self, client, sample_ship):
+        """Test setting zero speed"""
+        zero_speed = {"speed": 0.0}
+        
+        response = client.post(
+            f'/ships/{sample_ship.id}/speed',
+            data=json.dumps(zero_speed),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert data['error'] == 'Speed must be greater than 0'
+
+    def test_set_speed_string_number(self, client, sample_ship):
+        """Test setting speed with string number (should work)"""
+        string_speed = {"speed": "3.5"}
+        
+        response = client.post(
+            f'/ships/{sample_ship.id}/speed',
+            data=json.dumps(string_speed),
+            content_type='application/json'
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['speed'] == 3.5
+        assert ships[sample_ship.id].speed == 3.5

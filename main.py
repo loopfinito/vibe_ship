@@ -7,12 +7,13 @@ app = Flask(__name__)
 
 @dataclass
 class Ship:
-    """Ship model with name, position, and destination"""
+    """Ship model with name, position, destination, and speed"""
     name: str
     position_x: float
     position_y: float
     destination_x: float
     destination_y: float
+    speed: float = 1.0  # Default speed of 1.0 units per time unit
     id: str = None
     
     def __post_init__(self):
@@ -55,7 +56,8 @@ def create_ship():
             position_x=float(data['position_x']),
             position_y=float(data['position_y']),
             destination_x=float(data['destination_x']),
-            destination_y=float(data['destination_y'])
+            destination_y=float(data['destination_y']),
+            speed=float(data.get('speed', 1.0))  # Optional speed parameter
         )
         ships[ship.id] = ship
         return jsonify(ship.to_dict()), 201
@@ -83,6 +85,11 @@ def update_ship(ship_id):
             ship.destination_x = float(data['destination_x'])
         if 'destination_y' in data:
             ship.destination_y = float(data['destination_y'])
+        if 'speed' in data:
+            speed_value = float(data['speed'])
+            if speed_value <= 0:
+                return jsonify({'error': 'Speed must be greater than 0'}), 400
+            ship.speed = speed_value
         
         return jsonify(ship.to_dict())
     except (ValueError, TypeError) as e:
@@ -135,6 +142,28 @@ def set_destination(ship_id):
         return jsonify(ship.to_dict())
     except (ValueError, TypeError) as e:
         return jsonify({'error': 'Invalid coordinate format'}), 400
+
+@app.route('/ships/<ship_id>/speed', methods=['POST'])
+def set_speed(ship_id):
+    """Set a new speed for the ship"""
+    ship = ships.get(ship_id)
+    if not ship:
+        return jsonify({'error': 'Ship not found'}), 404
+    
+    data = request.get_json()
+    
+    if 'speed' not in data:
+        return jsonify({'error': 'Missing speed parameter'}), 400
+    
+    try:
+        speed_value = float(data['speed'])
+        if speed_value <= 0:
+            return jsonify({'error': 'Speed must be greater than 0'}), 400
+        
+        ship.speed = speed_value
+        return jsonify(ship.to_dict())
+    except (ValueError, TypeError) as e:
+        return jsonify({'error': 'Invalid speed format'}), 400
 
 @app.route('/health', methods=['GET'])
 def health_check():
